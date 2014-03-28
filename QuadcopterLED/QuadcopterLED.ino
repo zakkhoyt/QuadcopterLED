@@ -1,4 +1,8 @@
+// Using a library from adafruit to drive these LEDs
 #include <Adafruit_NeoPixel.h>
+
+
+//#define ENABLE_SERIAL 1
 
 #define ELEVATOR_PIN 4
 #define AILERON_PIN 5
@@ -38,8 +42,9 @@ void setup() {
   pinMode(ELEVATOR_PIN, INPUT); // Set our input pins as such
   pinMode(AILERON_PIN, INPUT);
 
+#if defined(ENABLE_SERIAL)
   Serial.begin(9600); // Pour a bowl of Serial
-
+#endif
 
 
   forwardStrip.begin();
@@ -76,13 +81,14 @@ void loop() {
             leftStripMagnitude(0, leftStrip.Color(0, 0, 0), 10); 
           }
         } 
+#if defined(ENABLE_SERIAL)
         Serial.print("Aileron: "); 
         Serial.println(aileron);        
+#endif
         lastAileron = aileron;
       }
     }
 
-//    delay(1);
 
 
     elevator = pulseIn(ELEVATOR_PIN, HIGH, 2200); // Read the pulse width of 
@@ -107,8 +113,10 @@ void loop() {
             forwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10); 
           }
         }
+#if defined(ENABLE_SERIAL)
         Serial.print("Elevator: "); 
         Serial.println(elevator);        
+#endif
         lastElevator = elevator;
       }
     }
