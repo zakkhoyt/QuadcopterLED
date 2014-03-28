@@ -18,12 +18,16 @@ Adafruit_NeoPixel backwardStrip = Adafruit_NeoPixel(LED_COUNT, BACKWARD_PIN, NEO
 Adafruit_NeoPixel leftStrip = Adafruit_NeoPixel(LED_COUNT, LEFT_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel rightStrip = Adafruit_NeoPixel(LED_COUNT, RIGHT_PIN, NEO_GRB + NEO_KHZ800);
 
-int aileron; 
-int elevator;
+uint16_t aileron; 
+uint16_t elevator;
 
-int lastAileron = 0;
-int lastElevator = 0;
-int processElevator = 1;
+uint16_t lastAileron = 0;
+uint16_t lastElevator = 0;
+uint16_t lastForward = 0;
+uint16_t lastBackward = 0;
+uint16_t lastLeft = 0;
+uint16_t lastRight = 0;
+
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
 // and minimize distance between Arduino and first pixel.  Avoid connecting
@@ -50,44 +54,61 @@ void setup() {
 
 void loop() {
   
-    aileron = pulseIn(AILERON_PIN, HIGH, 3000); // each channel
+    aileron = pulseIn(AILERON_PIN, HIGH, 2200); // each channel
     if(aileron != 0){
       if(aileron != lastAileron){
         if(aileron >= CENTER_SIGNAL_MS){
           uint16_t delta = aileron - CENTER_SIGNAL_MS;
           int left = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
           leftStripMagnitude(left, leftStrip.Color(0, 0, 255), 10); 
-          rightStripMagnitude(0, rightStrip.Color(0, 0, 0), 10);
+          lastLeft = left;
+          if(lastRight != 0){
+            lastRight = 0;
+            rightStripMagnitude(0, rightStrip.Color(0, 0, 0), 10);
+          }
         } else {
           uint16_t delta = CENTER_SIGNAL_MS - aileron;
           int right = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
           rightStripMagnitude(right, rightStrip.Color(255, 0, 255), 10);
-          leftStripMagnitude(0, leftStrip.Color(0, 0, 0), 10); 
-        }
-//        Serial.print("Aileron: "); 
-//        Serial.println(aileron);  
+          lastRight = right;
+          if(lastLeft != 0){
+            lastLeft = 0;
+            leftStripMagnitude(0, leftStrip.Color(0, 0, 0), 10); 
+          }
+        } 
+        Serial.print("Aileron: "); 
+        Serial.println(aileron);        
         lastAileron = aileron;
       }
     }
 
+//    delay(1);
 
 
-    elevator = pulseIn(ELEVATOR_PIN, HIGH, 3000); // Read the pulse width of 
+    elevator = pulseIn(ELEVATOR_PIN, HIGH, 2200); // Read the pulse width of 
     if(elevator != 0){
       if(elevator != lastElevator){
         if(elevator >= CENTER_SIGNAL_MS){
           uint16_t delta = elevator - CENTER_SIGNAL_MS;
           int forward = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
           forwardStripMagnitude(forward, forwardStrip.Color(255, 0, 0), 10); 
-          backwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10);
+          lastForward = forward;
+          if(lastBackward != 0){
+            lastBackward = 0;
+            backwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10);
+          }
         } else {
           uint16_t delta = CENTER_SIGNAL_MS - elevator;
           int backward = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
           backwardStripMagnitude(backward, forwardStrip.Color(0, 255, 0), 10);
-          forwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10); 
+          lastBackward = backward;
+          if(lastForward != 0){
+            lastForward = 0;
+            forwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10); 
+          }
         }
-//        Serial.print("Elevator: "); 
-//        Serial.println(elevator);        
+        Serial.print("Elevator: "); 
+        Serial.println(elevator);        
         lastElevator = elevator;
       }
     }
