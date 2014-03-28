@@ -1,26 +1,29 @@
 #include <Adafruit_NeoPixel.h>
 
-#define PIN 6
+#define ELEVATOR_PIN 4
+#define AILERON_PIN 5
+#define FORWARD_PIN 6
+#define BACKWARD_PIN 7
+#define LEFT_PIN 8
+#define RIGHT_PIN 9
 
+#define MAX_SIGNAL_MS 1900
+#define CENTER_SIGNAL_MS 1500
+#define MIN_SIGNAL_MS 1100
 #define LED_COUNT 16
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, PIN, NEO_GRB + NEO_KHZ800);
 
+Adafruit_NeoPixel forwardStrip = Adafruit_NeoPixel(LED_COUNT, FORWARD_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel backwardStrip = Adafruit_NeoPixel(LED_COUNT, BACKWARD_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel leftStrip = Adafruit_NeoPixel(LED_COUNT, LEFT_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel rightStrip = Adafruit_NeoPixel(LED_COUNT, RIGHT_PIN, NEO_GRB + NEO_KHZ800);
 
+int aileron; 
+int elevator;
 
-int ch1; // Here's where we'll keep our channel values
-//int ch2;
-//int ch3;
-
-int lastCH1 = 0;
-
+int lastAileron = 0;
+int lastElevator = 0;
+int processElevator = 1;
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
 // and minimize distance between Arduino and first pixel.  Avoid connecting
@@ -28,159 +31,111 @@ int lastCH1 = 0;
 
 void setup() {
   
-    pinMode(5, INPUT); // Set our input pins as such
-//  pinMode(6, INPUT);
-//  pinMode(7, INPUT);
+  pinMode(ELEVATOR_PIN, INPUT); // Set our input pins as such
+  pinMode(AILERON_PIN, INPUT);
 
   Serial.begin(9600); // Pour a bowl of Serial
 
 
 
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
+  forwardStrip.begin();
+  forwardStrip.show(); // Initialize all pixels to 'off'
+  backwardStrip.begin();
+  backwardStrip.show();
+  leftStrip.begin();
+  leftStrip.show();
+  rightStrip.begin();
+  rightStrip.show();
 }
 
 void loop() {
-    ch1 = pulseIn(5, HIGH, 2500); // Read the pulse width of 
-////  ch2 = pulseIn(6, HIGH, 25000); // each channel
-////  ch3 = pulseIn(7, HIGH, 25000);
-//
-  if(ch1 != 0){
-    if(ch1 != lastCH1){
-      int val = map(ch1, 1000, 2000, 0, strip.numPixels());
-      magnitudeLEDs(val, strip.Color(255, 0, 0), 10); // Red
-      Serial.print("Channel 1:"); // Print the value of 
-      Serial.println(ch1);        // each channel
-      
-      magnitudeLEDs(val, strip.Color(255, 0, 0), 10); // Red
-      
-      lastCH1 = ch1;
+  
+    aileron = pulseIn(AILERON_PIN, HIGH, 3000); // each channel
+    if(aileron != 0){
+      if(aileron != lastAileron){
+        if(aileron >= CENTER_SIGNAL_MS){
+          uint16_t delta = aileron - CENTER_SIGNAL_MS;
+          int left = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
+          leftStripMagnitude(left, leftStrip.Color(0, 0, 255), 10); 
+          rightStripMagnitude(0, rightStrip.Color(0, 0, 0), 10);
+        } else {
+          uint16_t delta = CENTER_SIGNAL_MS - aileron;
+          int right = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
+          rightStripMagnitude(right, rightStrip.Color(255, 0, 255), 10);
+          leftStripMagnitude(0, leftStrip.Color(0, 0, 0), 10); 
+        }
+//        Serial.print("Aileron: "); 
+//        Serial.println(aileron);  
+        lastAileron = aileron;
+      }
     }
-  }
-
-//  magnitudeLEDs(4, strip.Color(255, 0, 0), 10); // Red
-//  magnitudeLEDs(7, strip.Color(255, 0, 0), 10); // Red
-//  magnitudeLEDs(6, strip.Color(255, 0, 0), 10); // Red
 
 
-//  // Some example procedures showing how to display to the pixels:
-//  colorWipe(strip.Color(255, 0, 0), 10); // Red
-//  colorWipe(strip.Color(0, 255, 0), 10); // Green
-//  colorWipe(strip.Color(0, 0, 255), 10); // Blue
-//  // Send a theater pixel chase in...
-//  theaterChase(strip.Color(127, 127, 127), 50); // White
-//  theaterChase(strip.Color(127,   0,   0), 50); // Red
-//  theaterChase(strip.Color(  0,   0, 127), 50); // Blue
-//
-//  rainbow(20);
-//  rainbowCycle(20);
-//  theaterChaseRainbow(50);
+
+    elevator = pulseIn(ELEVATOR_PIN, HIGH, 3000); // Read the pulse width of 
+    if(elevator != 0){
+      if(elevator != lastElevator){
+        if(elevator >= CENTER_SIGNAL_MS){
+          uint16_t delta = elevator - CENTER_SIGNAL_MS;
+          int forward = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
+          forwardStripMagnitude(forward, forwardStrip.Color(255, 0, 0), 10); 
+          backwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10);
+        } else {
+          uint16_t delta = CENTER_SIGNAL_MS - elevator;
+          int backward = map(delta, 0, MAX_SIGNAL_MS - CENTER_SIGNAL_MS, 0, LED_COUNT);
+          backwardStripMagnitude(backward, forwardStrip.Color(0, 255, 0), 10);
+          forwardStripMagnitude(0, forwardStrip.Color(0, 0, 0), 10); 
+        }
+//        Serial.print("Elevator: "); 
+//        Serial.println(elevator);        
+        lastElevator = elevator;
+      }
+    }
+
+
+
 }
 
-//void clearLEDs(uint8_t wait) {
-//  for(uint16_t i=0; i<strip.numPixels(); i++) {
-//      strip.setPixelColor(i, strip.Color(0, 0, 0));
-//  }
-//  delay(wait);
-//  strip.show();
-//}
 
-void magnitudeLEDs(uint32_t m, uint32_t c, uint8_t wait) {
-//  for(uint16_t i=0; i<strip.numPixels() - m; i++){
-//    strip.setPixelColor(i, strip.Color(0, 0, 0));
-//  }
-  for(uint16_t i=0; i<strip.numPixels(); i++){
-    strip.setPixelColor(i, strip.Color(0, 0, 0));
+void forwardStripMagnitude(uint32_t m, uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<forwardStrip.numPixels(); i++){
+    forwardStrip.setPixelColor(i, forwardStrip.Color(0, 0, 0));
   }
 
   for(uint16_t i=0; i<m; i++) {
-      strip.setPixelColor(i, c);
+    forwardStrip.setPixelColor(i, c);
   }
-  strip.show();
-  delay(wait);
-
-}
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
-      strip.show();
-      delay(wait);
-  }
+  forwardStrip.show();
 }
 
-void rainbow(uint8_t wait) {
-  uint16_t i, j;
-
-  for(j=0; j<256; j++) {
-    for(i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel((i+j) & 255));
-    }
-    strip.show();
-    delay(wait);
+void backwardStripMagnitude(uint32_t m, uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<backwardStrip.numPixels(); i++){
+    backwardStrip.setPixelColor(i, backwardStrip.Color(0, 0, 0));
   }
+
+  for(uint16_t i=0; i<m; i++) {
+    backwardStrip.setPixelColor(i, c);
+  }
+  backwardStrip.show();
 }
-
-// Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle(uint8_t wait) {
-  uint16_t i, j;
-
-  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
-    for(i=0; i< strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-    }
-    strip.show();
-    delay(wait);
+void leftStripMagnitude(uint32_t m, uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<leftStrip.numPixels(); i++){
+    leftStrip.setPixelColor(i, leftStrip.Color(0, 0, 0));
   }
+
+  for(uint16_t i=0; i<m; i++) {
+    leftStrip.setPixelColor(i, c);
+  }
+  leftStrip.show();
 }
-
-//Theatre-style crawling lights.
-void theaterChase(uint32_t c, uint8_t wait) {
-  for (int j=0; j<10; j++) {  //do 10 cycles of chasing
-    for (int q=0; q < 3; q++) {
-      for (int i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, c);    //turn every third pixel on
-      }
-      strip.show();
-     
-      delay(wait);
-     
-      for (int i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, 0);        //turn every third pixel off
-      }
-    }
+void rightStripMagnitude(uint32_t m, uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<rightStrip.numPixels(); i++){
+    rightStrip.setPixelColor(i, rightStrip.Color(0, 0, 0));
   }
-}
 
-//Theatre-style crawling lights with rainbow effect
-void theaterChaseRainbow(uint8_t wait) {
-  for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
-    for (int q=0; q < 3; q++) {
-        for (int i=0; i < strip.numPixels(); i=i+3) {
-          strip.setPixelColor(i+q, Wheel( (i+j) % 255));    //turn every third pixel on
-        }
-        strip.show();
-       
-        delay(wait);
-       
-        for (int i=0; i < strip.numPixels(); i=i+3) {
-          strip.setPixelColor(i+q, 0);        //turn every third pixel off
-        }
-    }
+  for(uint16_t i=0; i<m; i++) {
+    rightStrip.setPixelColor(i, c);
   }
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos) {
-  if(WheelPos < 85) {
-   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-  } else if(WheelPos < 170) {
-   WheelPos -= 85;
-   return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  } else {
-   WheelPos -= 170;
-   return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-  }
+  rightStrip.show();
 }
 
